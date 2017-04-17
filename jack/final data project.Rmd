@@ -18,6 +18,8 @@ df <- read.csv("AmesHousing.csv")
 names(df) <- tolower(names(df))
 # drop the order vairiable
 names(df)
+i <- sapply(df, is.factor)
+df[i] <- lapply(df[i], as.character)
 ```
 
 
@@ -112,8 +114,6 @@ Continuous variable, ranging from 0 to 1064, median = 0, mean = 4.685, no missin
 OldTown(10), IDOTRR(7), and SWISU(6) have the most homes with low quality finish, though there are not that many(40) total. 
 
 ```{r}
-
-
 summary(df$low.qual.fin.sf)
 no.low.qual <- df %>% filter(low.qual.fin.sf == 0)
 nrow(no.low.qual) / nrow(df)
@@ -148,17 +148,14 @@ Four discrete variables relating to bathroom numbers:
 The majority of homes do not have any half baths or basement full baths. Both bsmt.full.bath and bsmt.half.bath have two missing values. Both are the same two variables, homes 1342 and 1498. 1342 is missing 10 predictors, all related to the basement, giving no indication of whether or not they have a basement. 1498 has no basement as shown by other predictors, so I have given both missing variables a value of 0.  
 
 ```{r}
-summary(df$bsmt.full.bath)
-summary(df$bsmt.half.bath)
-summary(df$full.bath)
-summary(df$half.bath)
-
 bath.missing <- df %>% filter(is.na(bsmt.half.bath) | is.na(bsmt.full.bath))
 bath.missing
 
 df$bsmt.full.bath[which(is.na(df$bsmt.full.bath))] <- 0
 df$bsmt.half.bath[which(is.na(df$bsmt.half.bath))] <- 0
 
+summary(df$bsmt.full.bath)
+summary(df$bsmt.half.bath)
 ```
 
 
@@ -168,7 +165,7 @@ Decided to combine all bathroom variables (above ground and basement full baths 
 ```{r}
 df <- mutate(df, total.bath = bsmt.full.bath + full.bath + (.5 * bsmt.half.bath) + (.5 * half.bath))
 summary(df$total.bath)
-ggplot(df, aes(x = total.bath, y = saleprice)) + geom_point(alpha = 0.2) 
+
 ```
 
 # # Bedrooms
@@ -197,26 +194,20 @@ summary(test_model)
 Two kitchen variables:
   - kitchen.abvgr - number of kitchens above ground level, discrete
   - kitchenqual - kitchen quality, five levels ranging from excellent to poor, ordinal
-    - Rearranged the factors of kitchen quality to range from poor to excellent rather than be in              alphabetical order
+    - There are no NA values for kitchen quality
 
 ```{r}
 summary(df$kitchen.abvgr)
 summary(df$kitchen.qual)
-
-df$kitchen.qual <- factor(df$kitchen.qual, levels = c("Po", "Fa", "TA", "Gd", "Ex"))
-levels(df$kitchen.qual)
+df[(df$kitchen.abvgr > 0) & is.na(df$kitchen.qual), ]
 ```
 
 # # Total Rooms Above Ground
 
 Discrete Variable ranging from 2 to 15, no missing values
 
-Graph below compares total rooms above ground with the total 1st and 2nd floor square feet, shows a relatively linear relation,
-
 ```{r}
 summary(df$totrms.abvgrd)
-Rooms.vs.Area <- df %>% mutate(abv.grnd.sf = x1st.flr.sf + x2nd.flr.sf)
-ggplot(Rooms.vs.Area, aes(x = totrms.abvgrd, y = abv.grnd.sf)) + geom_jitter(alpha = 0.2)
 ```
 
 # # Functional
@@ -228,8 +219,8 @@ The functional variable is an ordinal variable that describes home functionality
 Rearranged the factors of functional to range from Salvage Only to Typical rather than be in alphabetical order
 
 ```{r}
-df$functional <- factor(df$functional, levels = c("Sal", "Sev", "Maj2", "Maj1", "Mod", "Min2", "Min1", "Typ"))
 summary(df$functional)
+df$functional <- factor(df$functional, levels = c("Sal", "Sev", "Maj2", "Maj1", "Mod", "Min2", "Min1", "Typ"))
 ```
 
 # # Fireplaces
@@ -253,10 +244,11 @@ summary(df$fireplace.qu)
 
 ```{r}
 nrow(df[(df$fireplaces > 0) & is.na(df$fireplace.qu), ])
+```
 
-fct_explicit_na(df$fireplace.qu, "None")
-
-levels(df$fireplace.qu)
+```{r}
+index.fire <- which(is.na(df$fireplace.qu))
+df[index.fire, 'fireplace.qu'] <- 'No Fireplace'
 ```
 
 # # Garage Variables
@@ -311,41 +303,15 @@ df[(is.na(df$garage.cond) & df$garage.area > 0) | (is.na(df$garage.cond) & df$ga
 ```
 
 ```{r}
-addNA(df$garage.qual) 
-summary(df$garage.qual)
-df$garage.qual <- factor(df$garage.qual, levels = c("Po", "Fa", "TA", "Gd", "Ex"))
-levels(df$garage.qual)
+index.garage.type <- which(is.na(df$garage.type))
+df[index.garage.type, 'garage.type'] <- 'No Garage'
+
+index.garage.finish <- which(is.na(df$garage.finish))
+df[index.garage.finish, 'garage.finish'] <- 'No Garage'
+
+index.garage.qual <- which(is.na(df$garage.qual))
+df[index.garage.qual, 'garage.qual'] <- 'No Garage'
+
+index.garage.cond <- which(is.na(df$garage.cond))
+df[index.garage.cond, 'garage.cond'] <- 'No Garage'
 ```
-
-
-
-
-```{r}
-subset <- subset(df, select = electrical:garage.cond)
-salesprice <- df$saleprice
-subset_3 <- cbind(subset, salesprice)
-subset_3$saleprice <- subset_3$`df$salesprice`
-summary(subset_3)
-
-str(subset_3)
-
-# Are there any missing values in the data
-any(is.na(subset_3))
-# How many are there
-sum(is.na(subset_3))
-# return index of columns that have missing values 
-na.cols = which(colSums(is.na(subset_3)) > 0)
-# Break down missing values by variable
-sort(colSums(sapply(subset_3[na.cols], is.na)), decreasing = TRUE)
-```
-
-
-
-
-
-
-```{r}
-model <- glm(salesprice ~ ., data = subset_3)
-summary(model)
-```
-
