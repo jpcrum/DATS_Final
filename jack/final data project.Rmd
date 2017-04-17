@@ -14,6 +14,7 @@ getwd()
 df <- read.csv("AmesHousing.csv")
 ```
 
+
 ```{r}
 names(df) <- tolower(names(df))
 # drop the order vairiable
@@ -99,8 +100,13 @@ As advised in the documentation for the originial project, I have dropped all ho
 
 Continuous Variable, ranging from 334 to 3820, median = 1082, mean = 1155
 
+Ordered the df frame by above ground area, checked the head and tail to compare 1st floor square feet and above ground living area to make sure they align logically.
+
 ```{r}
 summary(df$x1st.flr.sf)
+sort.area <- df[order(df$gr.liv.area),]
+head(subset(sort.area, select = c(x, x1st.flr.sf, gr.liv.area)))
+tail(subset(sort.area, select = c(x, x1st.flr.sf, gr.liv.area)))
 ```
 
 # # Second Floor Square Feet
@@ -166,7 +172,6 @@ Four discrete variables relating to bathroom numbers:
 The majority of homes do not have any half baths or basement full baths. Both bsmt.full.bath and bsmt.half.bath have two missing values. Both are the same two variables, homes 1342 and 1498. 1342 is missing 10 predictors, all related to the basement, giving no indication of whether or not they have a basement. 1498 has no basement as shown by other predictors, so I have given both missing variables a value of 0.  
 
 ```{r}
-
 bath.missing <- df %>% filter(is.na(bsmt.half.bath) | is.na(bsmt.full.bath))
 bath.missing
 
@@ -184,7 +189,7 @@ Decided to combine all bathroom variables (above ground and basement full baths 
 
 
 ```{r}
-df <- mutate(df, total.bath = bsmt.full.bath + full.bath + (.5 * bsmt.half.bath) + (.5 * half.bath))
+mutate(df, total.bath = bsmt.full.bath + full.bath + (.5 * bsmt.half.bath) + (.5 * half.bath))
 summary(df$total.bath)
 
 ```
@@ -334,6 +339,12 @@ summary(df$garage.yr.blt)
 As can be seen, garage year is missing 159 values and the maximum value is 2207, which is obviously an error as that year has yet to occur, unless of course they meant 2207 B.C. I filtered the data set to test for homes built later than 2010, which is the tail date of the data set. Only one observation has this error. As the home was built in 2006 and remodeled in 2007, we can assume that the garage was built in 2007 and an imput error occured.
 
 ```{r}
+missing.garage.year <- df %>% filter(is.na(garage.yr.blt) & !is.na(garage.type))
+missing.garage.year
+# 1357 and 2237 have missing garage data
+```
+
+```{r}
 #Change garage year to integer for filtering
 df$garage.yr.blt <- as.numeric(df$garage.yr.blt)
 #Get all garage with a build year later than 2010
@@ -370,7 +381,9 @@ As suspected, the same value missing garage.cars is missing garage.area.
 
 ```{r}
 summary(as.factor(df$garage.qual))
+df %>% filter(is.na(garage.finish) & !is.na(garage.type))
 df %>% filter(is.na(garage.qual) & !is.na(garage.type))
+df %>% filter(is.na(garage.cond) & !is.na(garage.type))
 ```
 This table examines garage quality. It has 158 missing values, when it should have 157. The code finds the observation that is missing garage quality but has a value for garage type, indicting that it is missing data and not "No Garage"
 
@@ -378,7 +391,7 @@ This table examines garage quality. It has 158 missing values, when it should ha
 summary(as.factor(df$garage.cond))
 ```
 
-
+Changing NA's in garage variables to None
 
 ```{r}
 index.garage.type <- which(is.na(df$garage.type))
