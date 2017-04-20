@@ -406,3 +406,62 @@ df[index.garage.qual, 'garage.qual'] <- 'None'
 index.garage.cond <- which(is.na(df$garage.cond))
 df[index.garage.cond, 'garage.cond'] <- 'None'
 ```
+
+
+
+# # Removing Data
+
+Observation x=2237 is missing all garage data except for garage.type, indicting that there is a garage but no data on it. I have decided to remove it.
+
+```{r}
+df <- df %>% filter(x != 2237)
+```
+
+
+
+
+
+
+# # Exploratory Data Analysis
+
+```{r garage quality vs. garage condition}
+ggplot(df, aes(x = as.factor(garage.cond), y = as.factor(garage.qual))) + geom_jitter(alpha = 0.2)
+```
+
+```{r}
+ggplot(df, aes(x = factor(totrms.abvgrd), y = saleprice, fill = factor(totrms.abvgrd))) + geom_boxplot() + theme(axis.text.x = element_text(angle = 0, size = 10), legend.position = "none")
+```
+
+
+```{r}
+library(graphics)
+
+df1 <- df %>% mutate(total.sf = total.bsmt.sf + x1st.flr.sf + x2nd.flr.sf) %>% filter(!is.na(total.sf)) %>% filter(saleprice < 650000) %>% filter(total.sf < 7500)
+
+df1$total
+
+.flr <- ifelse(df1$total.bsmt.sf == 0 & df1$x2nd.flr.sf == 0, 1,
+                ifelse((df1$total.bsmt.sf == 0 & df1$x2nd.flr.sf > 0) |
+                         (df1$total.bsmt.sf > 0 & df1$x2nd.flr.sf == 0), 2, 3))
+
+
+ggplot(df1, aes(x = total.sf, y = saleprice, color = as.factor(total.flr))) + geom_point()
+```
+
+```{r}
+tbl1 <- df %>% 
+ggplot(df, aes(x = ))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
