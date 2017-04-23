@@ -429,6 +429,9 @@ Changing NA's in garage variables to None
 index.garage.type <- which(is.na(df$garage.type))
 df[index.garage.type, 'garage.type'] <- 'None'
 
+index.garage.yr <- which(is.na(df$garage.yr.blt))
+df[index.garage.yr, 'garage.yr.blt'] <- 'None'
+
 index.garage.finish <- which(is.na(df$garage.finish))
 df[index.garage.finish, 'garage.finish'] <- 'None'
 
@@ -443,10 +446,10 @@ df[index.garage.cond, 'garage.cond'] <- 'None'
 
 # # Removing Data
 
-Observation x=2237 is missing all garage data except for garage.type, indicting that there is a garage but no data on it. I have decided to remove it.
+Observation x=2237 is missing all garage data except for garage.type, indicting that there is a garage but no data on it. I have decided to remove it along with x = 1357, which is also missing most of the garage data.
 
 ```{r}
-df <- df %>% filter(x != 2237)
+df <- df %>% filter(x != 2237 & x != 1357)
 ```
 
 
@@ -478,11 +481,61 @@ df1$total.flr <- ifelse(df1$total.bsmt.sf == 0 & df1$x2nd.flr.sf == 0, 1,
 ggplot(df1, aes(x = total.sf, y = saleprice, color = as.factor(total.flr))) + geom_point()
 ```
 
-```{r}
-library('corrplot') #package corrplot
-corrplot(df, method = "circle") #plot matrix
+
+
+```{r Garage Exploratory Analysis}
+
+#install.packages("polycor")
+library(polycor)
+
+#Selecting garage variables and salepirce
+garage.vars <- select(df, garage.type:garage.cond, saleprice)
+
+#Converting categorical variables to factors
+garage.vars$garage.type <- as.factor(garage.vars$garage.type)
+garage.vars$garage.yr.blt <- as.factor(garage.vars$garage.yr.blt)
+garage.vars$garage.finish <- as.factor(garage.vars$garage.finish)
+garage.vars$garage.qual <- as.factor(garage.vars$garage.qual)
+garage.vars$garage.cond <- as.factor(garage.vars$garage.cond)
+colSums(is.na(garage.vars))
+
+#Releveling the factor levels as needed
+garage.vars$garage.finish <- factor(garage.vars$garage.finish, levels = c("None", "Unf", "RFn", "Fin"))
+garage.vars$garage.qual <- factor(garage.vars$garage.qual, levels = c("None", "Po", "Fa", "TA", "Gd", "Ex"))
+garage.vars$garage.cond <- factor(garage.vars$garage.cond, levels = c("None", "Po", "Fa", "TA", "Gd", "Ex"))
 ```
 
+
+```{r Garage Graphs}
+#garage year built vs sale price, bar graph
+ggplot(df, aes(x = garage.yr.blt, y = saleprice, fill = as.factor(garage.yr.blt))) + geom_bar(stat='identity') + theme(legend.position = 'none')
+
+#garage year built vs sale price, histogram
+ggplot(df, aes(x = garage.yr.blt, fill = as.factor(garage.yr.blt))) + geom_histogram(stat='count', binwidth = 10) + theme(legend.position = 'none')
+```
+
+
+```{r Garage Correlation}
+library(corrplot)
+M <- hetcor(garage.vars)
+corrplot(as.matrix(M), method='color')
+```
+
+
+```{r}
+area.vars <- select(df, x1st.flr.sf:gr.liv.area, saleprice)
+
+summary(lm(saleprice ~ ., data = area.vars))
+summary(lm(saleprice ~ gr.liv.area, data = df))
+```
+
+```{r Bathrooms}
+bath.vars <- select(df, bsmt.full.bath:half.bath, saleprice)
+summary(lm(saleprice ~ ., data = bath.vars))
+
+
+cor(bath.vars)
+```
 
 
 
