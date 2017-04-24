@@ -9,13 +9,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r Loading Data Set}
 getwd()
 df <- read.csv("AmesHousing.csv")
 ```
 
 
-```{r}
+```{r Making Names All Lowercase}
 names(df) <- tolower(names(df))
 # drop the order vairiable
 names(df)
@@ -25,7 +25,7 @@ df[i] <- lapply(df[i], as.character)
 
 
 
-```{r}
+```{r Library Packages}
 library(VIF)
 library(ggplot2)
 library(glmnet)
@@ -38,7 +38,7 @@ library(forcats)
 ```
 
 
-```{r}
+```{r Structure and Summary of DF}
 nrow(df)
 
 dim(df)
@@ -56,13 +56,15 @@ na.cols = which(colSums(is.na(df)) > 0)
 sort(colSums(sapply(df[na.cols], is.na)), decreasing = TRUE)
 ```
 
+# # Data Cleaning
+
 # # Electrical
 
 The electrical variable identifies the electrical system in the sold home. 2677 homes (91.52%) use Standard Circuit Breakers & Romex. Nominal Variable.
 
 I decided to change the names of the electrical categories to shorter abbreviations.
 
-```{r}
+```{r Changing names of electrical factor levels}
 summary(as.factor(df$electrical))
 
 # shorten to SB
@@ -88,16 +90,7 @@ summary(as.factor(df$electrical))
 df %>% group_by(electrical) %>% summarise(median_saleprice = median(saleprice))
 ```
 
-While there appears to be a relationship between electrical type and sales price, FP and M only have 8 and 1 observations, respectively. 
 
-```{r}
-df %>% filter(electrical == "M" | electrical == "FP") %>% group_by(electrical, overall.qual, overall.cond, x) %>% summarise(median_saleprice = median(saleprice))
-
-df %>% group_by(electrical) %>% summarise(median_quality = median(overall.qual), median_cond = median(overall.cond), median_saleprice = median(saleprice))
-
-ggplot(df, aes(x = factor(electrical), y = saleprice)) + geom_boxplot(aes(fill = factor(electrical)))
-```
-If you look at the houses using FP or M electrical systems, they tend to be 5 or below on overall condition and quality with a few exceptions. The median salesprice decreases if the electrical type has less observations.
 
 
 # # Living Area
@@ -107,7 +100,7 @@ Four variables deal with living area:
  - low.qual.fin.sf (Low quality finished square feet), Continuous
  - gr.live.area (Above Ground living area square feet), Continuous
 
-As advised in the documentation for the originial project, I have dropped all houses with an above ground living area greater than 4000 square feet, dropping a total of 5 variables. Three of them are true outliers (Partial Sales that likely don't represent actual market values) and two of them are simply unusual sales (very large houses priced relatively appropriately). 
+
 
 # # First Floor Square Feet
 
@@ -115,15 +108,11 @@ Continuous Variable, ranging from 334 to 3820, median = 1082, mean = 1155
 
 Ordered the df frame by above ground area, checked the head and tail to compare 1st floor square feet and above ground living area to make sure they align logically.
 
-```{r}
+```{r 1st Floor SF}
 summary(df$x1st.flr.sf)
 sort.area <- df[order(df$gr.liv.area),]
-head(subset(sort.area, select = c(x, x1st.flr.sf, gr.liv.area)))
-tail(subset(sort.area, select = c(x, x1st.flr.sf, gr.liv.area)))
-
-ggplot(df, aes(x = x1st.flr.sf, y = saleprice)) + geom_point(alpha = 0.2, color = "red")
-
-summary(lm(saleprice ~ x1st.flr.sf, data = df))
+head(subset(sort.area, select = c(x1st.flr.sf, gr.liv.area)))
+tail(subset(sort.area, select = c(x1st.flr.sf, gr.liv.area)))
 ```
 
 # # Second Floor Square Feet
@@ -133,24 +122,13 @@ Continuous variable, ranging from 0 to 1862, median = 0, mean = 333.8, indicatin
 Made a table containing neighborhoods and the ratio of houses sold that had a second floor in each neighbordhood
 
 
-```{r} 
+```{r 2nd Floor SF} 
 summary(df$x2nd.flr.sf)
 df$has.2nd.floor <- ifelse(df$x2nd.flr.sf > 0, 1, 0)
 df$has.2nd.floor <- as.factor(df$has.2nd.floor)
 summary(df$has.2nd.floor)
-
-#Percentage of houses that have 2 floors
-a <- df %>% filter(has.2nd.floor == 1)
-nrow(a) / nrow(df)
-
-#Checking neighborhood distribution of houses with 2 floors
-tall.houses <- df %>% group_by(neighborhood) %>% summarise(floors = mean(as.numeric(has.2nd.floor)))
-head(tall.houses)
-
-ggplot(df, aes(x = has.2nd.floor, y = saleprice)) + geom_boxplot(aes(fill = factor(has.2nd.floor)))
 ```
 
-There doesn't seem to much change in sales price between houses with and without second floors.
 
 # # Low Quality Finish Square Feet
 
@@ -160,29 +138,27 @@ Continuous variable, ranging from 0 to 1064, median = 0, mean = 4.685, no missin
 
 OldTown(10), IDOTRR(7), and SWISU(6) have the most homes with low quality finish, though there are not that many(40) total. 
 
-```{r}
+```{r Low Quality Finish SF}
 summary(df$low.qual.fin.sf)
 no.low.qual <- df %>% filter(low.qual.fin.sf == 0)
 nrow(no.low.qual) / nrow(df)
+
+#Which neighborhood has houses with low quality finish
 wherelow <- df %>% group_by(neighborhood) %>% filter(low.qual.fin.sf > 0) %>% summarise(n = n())
 wherelow
 ```
 
-
-# # Greater Living Area
+# # Above Ground Living Area
 
 Continuous Variable, ranging from 334 to 5642, same as 1st floor square feet, median = 1441, mean = 1494
 
 I arranged by above ground living area from lowest to high and checked the head and tail to make sure everything made sense. The smallest homes have low room counts and few other features whereas the biggest homes have high room counts and many features.
 
-```{r}
+```{r Above Ground Living Area}
 summary(df$gr.liv.area)
+nrow(is.na(df$gr.liv.area))
 head(df[order(df$gr.liv.area),] )
 tail(df[order(df$gr.liv.area),] )
-```
-
-```{r}
-ggplot(df, aes(x = gr.liv.area, y = saleprice)) + geom_point(alpha=0.2, color = "red")
 ```
 
 
@@ -196,35 +172,32 @@ Four discrete variables relating to bathroom numbers:
   
 The majority of homes do not have any half baths or basement full baths. Both bsmt.full.bath and bsmt.half.bath have two missing values. Both are the same two variables, homes 1342 and 1498. 1342 is missing 10 predictors, all related to the basement, giving no indication of whether or not they have a basement. 1498 has no basement as shown by other predictors, so I have given both missing variables a value of 0.  
 
-```{r}
-bath.missing <- df %>% filter(is.na(bsmt.half.bath) | is.na(bsmt.full.bath))
+```{r Bathroom Summaries}
+summary(df$bsmt.full.bath)
+summary(df$bsmt.half.bath)
+summary(df$full.bath)
+summary(df$half.bath)
+```
+
+```{r Converting basement bathroom missing values to 0}
+bath.missing <- df %>% filter(is.na(bsmt.half.bath) | is.na(bsmt.full.bath) | is.na(half.bath) | is.na(full.bath))
 bath.missing
 
 df$bsmt.full.bath[which(is.na(df$bsmt.full.bath))] <- 0
 df$bsmt.half.bath[which(is.na(df$bsmt.half.bath))] <- 0
-
-table(df$bsmt.full.bath)
-table(df$bsmt.half.bath)
-table(df$full.bath)
-table(df$half.bath)
+df$full.bath[which(is.na(df$full.bath))] <- 0
+df$half.bath[which(is.na(df$half.bath))] <- 0
 ```
 
 
 Decided to combine all bathroom variables (above ground and basement full baths and half baths) into one total bathroom variable, discrete, if we want to simplify our analysis regarding bathrooms.
 
 
-```{r}
+```{r Total Bathrooms}
 tbl.bath <- mutate(df, total.bath = bsmt.full.bath + full.bath + (.5 * bsmt.half.bath) + (.5 * half.bath))
 summary(df$total.bath)
 ```
 
-```{r}
-ggplot(df, aes(x = factor(bsmt.half.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(bsmt.half.bath)))
-ggplot(df, aes(x = factor(bsmt.full.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(bsmt.full.bath)))
-ggplot(df, aes(x = factor(half.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(half.bath)))
-ggplot(df, aes(x = factor(full.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(full.bath)))
-ggplot(tbl.bath, aes(x = factor(total.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(total.bath)))
-```
 
 # # Bedrooms
 
@@ -232,22 +205,21 @@ This discrete variable describes the number of bedrooms above ground level, rang
 
 There are 8 homes with 0 bedrooms above ground level, but those 8 have between 3-6 total above ground rooms. All but one have total.bsmt.sf near or greater than 1000 ft squared, indicating large basements, possibly with bedrooms. All but one also have no second floor. All have either one or two full baths in the basement and few other bathrooms. All have kitchens above ground. All have sale.type = WD and all but one sale.condition = Normal. Most have roughly equal total.bsmt.sf and gr.live.area.
 
-There is most likely collinearity between number of bedrooms and total number of rooms. A linear model of bedrooms on total rooms returns a p-value of essentially zero.
 
-```{r}
+```{r Bedrooms}
+summary(df$bedroom.abvgr)
 table(df$bedroom.abvgr)
+
+# Checking how many rooms are in each sale with 0 bedrooms
 bedless <- df %>% filter(bedroom.abvgr == 0) 
 bedless
-#Checking how many rooms are in each sale with 0 bedrooms
+# Seeing how many total rooms the homes with 0 bedrooms above ground have
 bedless1 <- subset(bedless, select = c(x, totrms.abvgrd))
 bedless1
 
 #Comparing the basement area and above ground area of the homes with no above ground bedrooms
 area.compare <- subset(bedless, select = c(x, total.bsmt.sf, gr.liv.area))
 area.compare
-
-test_model <- lm(totrms.abvgrd ~ bedroom.abvgr, data = df)
-summary(test_model)
 ```
 
 
@@ -258,23 +230,22 @@ Two kitchen variables:
     - Most homes (2796) have only 1 kitchen
   - kitchenqual - kitchen quality, five levels ranging from excellent to poor, ordinal
     - There are no NA values for kitchen quality
+    - There is only  1 Poor kitchen and 70 Fair kitchens
 
-```{r}
+```{r summary of kitchen variables}
 table(df$kitchen.abvgr)
+summary(as.factor(df$kitchen.qual))
 ```
 
-```{r}
-table(df$kitchen.qual)
-df[(df$kitchen.abvgr > 0) & is.na(df$kitchen.qual), ]
-```
 
 # # Total Rooms Above Ground
 
 Discrete Variable ranging from 2 to 15, no missing values
 
 
-```{r}
+```{r Total Rooms abvgrd}
 table(df$totrms.abvgrd)
+summary(df$totrms.abvgrd)
 ```
 
 # # Functional
@@ -285,8 +256,8 @@ The functional variable is an ordinal variable that describes home functionality
 
 Rearranged the factors of functional to range from Salvage Only to Typical rather than be in alphabetical order
 
-```{r}
-table(df$functional)
+```{r Summary and Factor Levels for functional}
+summary(df$functional)
 df$functional <- factor(df$functional, levels = c("Sal", "Sev", "Maj2", "Maj1", "Mod", "Min2", "Min1", "Typ"))
 ```
 
@@ -298,20 +269,17 @@ Two fireplace related variables:
     - Changed NA in fireplace.qu to "No Fireplace"
     - 1422 homes are recorded as having no fireplace, but the label is NA
     
-
-```{r}
+```{r Fireplaces}
+summary(df$fireplaces)
+summary(as.factor(df$fireplace.qu))
 nrow(df[(df$fireplaces > 0) & is.na(df$fireplace.qu), ])
-```
 
-```{r}
 index.fire <- which(is.na(df$fireplace.qu))
 df[index.fire, 'fireplace.qu'] <- 'No Fireplace'
+summary(as.factor(df$fireplace.qu))
 ```
 
-```{r}
-table(df$fireplaces)
-table(df$fireplace.qu)
-```
+
 
 # # Garage Variables
 
@@ -333,13 +301,14 @@ There are seven total variables related to the homes's garage:
       - NA for no garage
 
 Testing to see if any garage types that are NA have an area > 0 or cars > 0 to show that the NA is a missing value. The result is 0 observations that match this test. We can assume then that there are 157 homes without garages and each ordinal or nominal variable should have 157 NA's.
-```{r}
+
+```{r Missing Garage Types with Area}
 df[(is.na(df$garage.type) & df$garage.area > 0) | (is.na(df$garage.type) & df$garage.cars > 0) , ]
 ```
 
 
 This table examines garage.type. Simplifying the factor names.
-```{r}
+```{r Renaming Factor Levels for Garage}
 table(as.factor(df$garage.type))
 # shorten to 2T
 index <- which(df$garage.type == "2Types")
@@ -364,19 +333,19 @@ df[index, 'garage.type'] <- "D"
 table(as.factor(df$garage.type))
 ```
 
-```{r}
+```{r Garage Year Built}
 summary(df$garage.yr.blt)
 ```
 
 As can be seen, garage year is missing 159 values and the maximum value is 2207, which is obviously an error as that year has yet to occur, unless of course they meant 2207 B.C. I filtered the data set to test for homes built later than 2010, which is the tail date of the data set. Only one observation has this error. As the home was built in 2006 and remodeled in 2007, we can assume that the garage was built in 2007 and an imput error occured.
 
-```{r}
+```{r Missing Garage Years}
 missing.garage.year <- df %>% filter(is.na(garage.yr.blt) & !is.na(garage.type))
 missing.garage.year
 # 1357 and 2237 have missing garage data
 ```
 
-```{r}
+```{r Fixing garage.yr.blt == 2207}
 #Change garage year to integer for filtering
 df$garage.yr.blt <- as.numeric(df$garage.yr.blt)
 #Get all garage with a build year later than 2010
@@ -389,7 +358,7 @@ df$garage.yr.blt[df$garage.yr.blt == "2207"] <- "2007"
 table(df$garage.yr.blt)
 ```  
 
-```{r}
+```{r Garage Finish}
 summary(as.factor(df$garage.finish))
 df[is.na(df$garage.finish) & !is.na(df$garage.type), ]
 ```
@@ -397,21 +366,21 @@ df[is.na(df$garage.finish) & !is.na(df$garage.type), ]
 This table shows that there are 157 NA's in garage.finish. I tested to see if any of the NA's are in garage.finish but not in garage.type. There are no such observations.
 
 
-```{r}
+```{r Garage Cars}
 summary(df$garage.cars)
 df %>% filter(is.na(garage.cars))
 ```
 
 The single missing value of garage.cars is an observation that is missing all garage data.
 
-```{r}
+```{r Garage Area}
 summary(df$garage.area)
 df %>% filter(is.na(garage.area))
 ```
 
 As suspected, the same value missing garage.cars is missing garage.area.
 
-```{r}
+```{r Missing Garage Values}
 summary(as.factor(df$garage.qual))
 df %>% filter(is.na(garage.finish) & !is.na(garage.type))
 df %>% filter(is.na(garage.qual) & !is.na(garage.type))
@@ -419,13 +388,13 @@ df %>% filter(is.na(garage.cond) & !is.na(garage.type))
 ```
 This table examines garage quality. It has 158 missing values, when it should have 157. The code finds the observation that is missing garage quality but has a value for garage type, indicting that it is missing data and not "No Garage"
 
-```{r}
+```{r Garage Condition}
 summary(as.factor(df$garage.cond))
 ```
 
 Changing NA's in garage variables to None
 
-```{r}
+```{r Change NA's to None}
 index.garage.type <- which(is.na(df$garage.type))
 df[index.garage.type, 'garage.type'] <- 'None'
 
@@ -442,15 +411,84 @@ index.garage.cond <- which(is.na(df$garage.cond))
 df[index.garage.cond, 'garage.cond'] <- 'None'
 ```
 
-
-
 # # Removing Data
 
 Observation x=2237 is missing all garage data except for garage.type, indicting that there is a garage but no data on it. I have decided to remove it along with x = 1357, which is also missing most of the garage data.
 
-```{r}
+```{r Removing Observations 2237 and 1357}
 df <- df %>% filter(x != 2237 & x != 1357)
 ```
+
+Variables to remove:
+- Garage.cond
+- Garage.cars
+- Totrms.abvgrd
+
+
+
+# # Collinearity Tests
+
+```{r}
+df$electrical <- as.factor(df$electrical)
+df$kitchen.qual <- as.factor(df$kitchen.qual)
+df$fireplace.qu <- as.factor(df$fireplace.qu)
+df$garage.type <- as.factor(df$garage.type)
+df$garage.yr.blt <- as.numeric(df$garage.yr.blt)
+df$garage.finish <- as.factor(df$garage.finish)
+df$garage.qual <- as.factor(df$garage.qual)
+df$garage.cond <- as.factor(df$garage.cond)
+
+
+#Releveling the factor levels as needed
+df$kitchen.qual <- factor(df$kitchen.qual, levels = c("Po", "Fa", "TA", "Gd", "Ex"))
+df$fireplace.qu <- factor(df$fireplace.qu, levels = c("No Fireplace", "Po", "Fa", "TA", "Gd", "Ex"))
+df$garage.finish <- factor(df$garage.finish, levels = c("None", "Unf", "RFn", "Fin"))
+df$garage.qual <- factor(df$garage.qual, levels = c("None", "Po", "Fa", "TA", "Gd", "Ex"))
+df$garage.cond <- factor(df$garage.cond, levels = c("None", "Po", "Fa", "TA", "Gd", "Ex"))
+```
+
+
+```{r Total Rooms vs Total Bedrooms}
+cor(df$totrms.abvgrd, df$bedroom.abvgr)
+```
+There is a correlation coefficient of 0.6726853 between these two variables.
+
+
+```{r Total Living Area vs Total Rooms}
+library(VIF)
+cor(df$gr.liv.area, df$totrms.abvgrd)
+```
+There is a correlation coefficient of 0.8078416 between total rooms above ground and total surface area above ground. However, 
+
+
+Garage condition and garage quality appear to be similar variables. 
+
+```{r Garage Condition vs Garage Quality}
+#Checking relation between garage.cond and garage.qual
+ggplot(df, aes(x = garage.qual, y = garage.cond)) + geom_jitter(alpha = 0.2, color = 'red')
+
+tbl.qual.cond <- table(df$garage.cond, df$garage.qual)
+tbl.qual.cond
+chisq.test(tbl.qual.cond, correct = TRUE)
+```
+
+The graph and chi-squared show that the two variables are collinear. We should drop garage condition.
+
+Next, I am testing correlation between garage.area and garage.cars 
+
+```{r Garage Area vs Garage Cars}
+has.garage <- df %>% filter(garage.area > 0)
+ggplot(has.garage, aes(x = garage.cars, y = garage.area)) + geom_jitter()
+cor(df$garage.area, df$garage.cars)
+```
+The correlation coefficient is 0.8896919, showing clear collinearity. I am dropping garage.cars.
+
+```{r hetcor}
+garage.vars <- select(df, garage.type:garage.cond, saleprice)
+library(polycor)
+hetcor(garage.vars)
+```
+
 
 
 
@@ -459,16 +497,54 @@ df <- df %>% filter(x != 2237 & x != 1357)
 
 # # Exploratory Data Analysis
 
-```{r garage quality vs. garage condition}
-ggplot(df, aes(x = as.factor(garage.cond), y = as.factor(garage.qual))) + geom_jitter(alpha = 0.2)
+
+
+# # Electrical Graphs
+
+```{r Checking Electrical}
+summary(as.factor(df$electrical))
+
+df %>% filter(electrical == "M" | electrical == "FP") %>% group_by(electrical, overall.qual, overall.cond, x) %>% summarise(median_saleprice = median(saleprice))
+
+df %>% group_by(electrical) %>% summarise(median_quality = median(overall.qual), median_cond = median(overall.cond), median_saleprice = median(saleprice))
+
+tbl.electric <- df %>% filter(electrical != "Unknown")
+
+ggplot(tbl.electric, aes(x = factor(electrical), y = saleprice)) + geom_boxplot(aes(fill = factor(electrical)))
+```
+If you look at the houses using FP or M electrical systems, they tend to be 5 or below on overall condition and quality with a few exceptions. The median salesprice decreases if the electrical type has less observations.
+
+
+# # Living Area Graphs 
+
+```{r 1st floor vs Salesprice}
+ggplot(df, aes(x = x1st.flr.sf, y = saleprice)) + geom_point(alpha = 0.2, color = "red")
+ggplot(df, aes(x = x2nd.flr.sf, y = saleprice)) + geom_point(alpha = 0.2, color = "red")
+ggplot(df, aes(x = low.qual.fin.sf, y = saleprice)) + geom_point(alpha = 0.2, color = "red")
+ggplot(df, aes(x = gr.liv.area, y = saleprice)) + geom_point(alpha = 0.2, color = "red")
+
+
+one.floor <- df %>% filter(x2nd.flr.sf == 0) 
+head(arrange(one.floor, desc(saleprice)), 20)
+
+#looking at the outliers
+df %>% filter(gr.liv.area > 4000)
 ```
 
-```{r}
-ggplot(df, aes(x = factor(totrms.abvgrd), y = saleprice, fill = factor(totrms.abvgrd))) + geom_boxplot() + theme(axis.text.x = element_text(angle = 0, size = 10), legend.position = "none")
+```{r Has Second Floor}
+#Percentage of houses that have 2 floors
+a <- df %>% filter(has.2nd.floor == 1)
+nrow(a) / nrow(df)
+
+#Checking neighborhood distribution of houses with 2 floors
+tall.houses <- df %>% group_by(neighborhood) %>% summarise(floors = mean(as.numeric(has.2nd.floor)))
+head(tall.houses)
+
+ggplot(df, aes(x = has.2nd.floor, y = saleprice)) + geom_boxplot(aes(fill = factor(has.2nd.floor)))
 ```
 
 
-```{r}
+```{r Salesprice by Number of Floors}
 library(graphics)
 
 df1 <- df %>% mutate(total.sf = total.bsmt.sf + x1st.flr.sf + x2nd.flr.sf) %>% filter(!is.na(total.sf)) %>% filter(saleprice < 650000) %>% filter(total.sf < 7500)
@@ -479,40 +555,86 @@ df1$total.flr <- ifelse(df1$total.bsmt.sf == 0 & df1$x2nd.flr.sf == 0, 1,
 
 
 ggplot(df1, aes(x = total.sf, y = saleprice, color = as.factor(total.flr))) + geom_point()
+ggplot(df1, aes(x = total.flr, y = saleprice, fill = as.factor(total.flr))) + geom_boxplot()
+```
+
+
+```{r Area Variables}
+area.vars <- select(df, x1st.flr.sf:gr.liv.area, saleprice)
+
+summary(lm(saleprice ~ ., data = area.vars))
+summary(lm(saleprice ~ gr.liv.area, data = df))
+```
+
+# # Bathroom Graphs
+
+```{r Bathroom Graphs}
+ggplot(df, aes(x = factor(bsmt.half.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(bsmt.half.bath)))
+ggplot(df, aes(x = factor(bsmt.full.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(bsmt.full.bath)))
+ggplot(df, aes(x = factor(half.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(half.bath)))
+ggplot(df, aes(x = factor(full.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(full.bath)))
+ggplot(tbl.bath, aes(x = factor(total.bath), y = saleprice)) + geom_boxplot(aes(fill = factor(total.bath)))
+
+bath.vars <- select(df, bsmt.full.bath:half.bath, saleprice)
+summary(lm(saleprice ~ ., data = bath.vars))
+```
+
+# # Kitchen Graphs
+
+```{r Kitchen}
+#Almost all have only 1 kitchen above ground
+hist(df$kitchen.abvgr)
+ggplot(df, aes(x = factor(kitchen.abvgr), y = saleprice, fill = factor(kitchen.abvgr))) + geom_boxplot()
+ggplot(df, aes(x = kitchen.qual, y = saleprice, fill = kitchen.qual)) + geom_boxplot()
+# Having more kitchens does not equal higher sales price
+```
+
+# # Function
+
+```{r Functional}
+func <- df %>% group_by(functional) %>% summarise(n = n())
+ggplot(func, aes(x = functional, y = n)) + geom_bar(stat='identity')
+#Almost all are typical functionality
+ggplot(df, aes(x = functional, y = saleprice, fill = functional)) + geom_boxplot()
+#Appears to be a slight relationship between functionality and saleprice
+```
+
+# # Fireplace Graphs
+
+```{r}
+hist(df$fireplaces)
+ggplot(df, aes(x = factor(fireplaces), y = saleprice, fill = factor(fireplaces))) + geom_boxplot()
+ggplot(df, aes(x = fireplace.qu, y = saleprice, fill = factor(fireplace.qu))) + geom_boxplot()
 ```
 
 
 
-```{r Garage Exploratory Analysis}
+# # Garage Graphs
 
-#install.packages("polycor")
-library(polycor)
-
-#Selecting garage variables and salepirce
-garage.vars <- select(df, garage.type:garage.cond, saleprice)
-
-#Converting categorical variables to factors
-garage.vars$garage.type <- as.factor(garage.vars$garage.type)
-garage.vars$garage.yr.blt <- as.factor(garage.vars$garage.yr.blt)
-garage.vars$garage.finish <- as.factor(garage.vars$garage.finish)
-garage.vars$garage.qual <- as.factor(garage.vars$garage.qual)
-garage.vars$garage.cond <- as.factor(garage.vars$garage.cond)
-colSums(is.na(garage.vars))
-
-#Releveling the factor levels as needed
-garage.vars$garage.finish <- factor(garage.vars$garage.finish, levels = c("None", "Unf", "RFn", "Fin"))
-garage.vars$garage.qual <- factor(garage.vars$garage.qual, levels = c("None", "Po", "Fa", "TA", "Gd", "Ex"))
-garage.vars$garage.cond <- factor(garage.vars$garage.cond, levels = c("None", "Po", "Fa", "TA", "Gd", "Ex"))
+```{r}
+ggplot(df, aes(x = garage.type, y = saleprice, fill = garage.type)) + geom_boxplot()
 ```
 
 
-```{r Garage Graphs}
+
+```{r Garage Year Built Graphs}
 #garage year built vs sale price, bar graph
-ggplot(df, aes(x = garage.yr.blt, y = saleprice, fill = as.factor(garage.yr.blt))) + geom_bar(stat='identity') + theme(legend.position = 'none')
+ggplot(df, aes(x = garage.yr.blt, y = saleprice, fill = garage.yr.blt)) + geom_bar(stat='identity') + theme(legend.position = 'none')
 
 #garage year built vs sale price, histogram
-ggplot(df, aes(x = garage.yr.blt, fill = as.factor(garage.yr.blt))) + geom_histogram(stat='count', binwidth = 10) + theme(legend.position = 'none')
+ggplot(df, aes(x = garage.yr.blt, fill = garage.yr.blt)) + geom_histogram(stat='count', binwidth = 10) + theme(legend.position = 'none')
 ```
+
+```{r Garage Area}
+ggplot(df, aes(x = garage.area, y = saleprice)) + geom_point(alpha = 0.2, color = 'red')
+```
+
+
+```{r Garage Quality}
+ggplot(df, aes(x = garage.qual, fill = garage.qual)) + geom_histogram(stat='count') + theme(legend.position = 'none')
+ggplot(df, aes(x = garage.qual, y = saleprice, fill = garage.qual)) + geom_boxplot()
+```
+
 
 
 ```{r Garage Correlation}
@@ -522,29 +644,35 @@ corrplot(as.matrix(M), method='color')
 ```
 
 
+
+
+
+
+
+
+```{r Graphs with low quality sf}
+tbl.low <- select(df, x, low.qual.fin.sf, total.bsmt.sf, gr.liv.area, saleprice)
+tbl.low$has.low <- ifelse(tbl.low$low.qual.fin.sf > 0, 1, 0)
+tbl.low <- tbl.low %>% mutate(total.sf = total.bsmt.sf + gr.liv.area)
+ggplot(tbl.low, aes(x = total.sf, y = saleprice, fill = as.factor(has.low))) + geom_point(alpha = 0.2)
+```
+
+
+
+
+
+# # Models
+
+
+```{r Linear Model}
+jacksub <- select(df, electrical:garage.cond, saleprice)
+str(jacksub)
+```
+
 ```{r}
-area.vars <- select(df, x1st.flr.sf:gr.liv.area, saleprice)
-
-summary(lm(saleprice ~ ., data = area.vars))
-summary(lm(saleprice ~ gr.liv.area, data = df))
+library(dummies)
+jacksub.dummy <- dummy.data.frame(jacksub)
+summary(lm(saleprice ~ ., data = jacksub.dummy))
 ```
-
-```{r Bathrooms}
-bath.vars <- select(df, bsmt.full.bath:half.bath, saleprice)
-summary(lm(saleprice ~ ., data = bath.vars))
-
-
-cor(bath.vars)
-```
-
-
-
-
-
-
-
-
-
-
 
 
