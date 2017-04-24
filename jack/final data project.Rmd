@@ -195,7 +195,7 @@ Decided to combine all bathroom variables (above ground and basement full baths 
 
 ```{r Total Bathrooms}
 tbl.bath <- mutate(df, total.bath = bsmt.full.bath + full.bath + (.5 * bsmt.half.bath) + (.5 * half.bath))
-summary(df$total.bath)
+summary(tbl.bath$total.bath)
 ```
 
 
@@ -340,9 +340,9 @@ summary(df$garage.yr.blt)
 As can be seen, garage year is missing 159 values and the maximum value is 2207, which is obviously an error as that year has yet to occur, unless of course they meant 2207 B.C. I filtered the data set to test for homes built later than 2010, which is the tail date of the data set. Only one observation has this error. As the home was built in 2006 and remodeled in 2007, we can assume that the garage was built in 2007 and an imput error occured.
 
 ```{r Missing Garage Years}
-missing.garage.year <- df %>% filter(is.na(garage.yr.blt) & !is.na(garage.type))
-missing.garage.year
 # 1357 and 2237 have missing garage data
+index <- which(is.na(df$garage.yr.blt) & !is.na(df$garage.type))
+df <- df[-index, ]
 ```
 
 ```{r Fixing garage.yr.blt == 2207}
@@ -416,7 +416,7 @@ df[index.garage.cond, 'garage.cond'] <- 'None'
 Observation x=2237 is missing all garage data except for garage.type, indicting that there is a garage but no data on it. I have decided to remove it along with x = 1357, which is also missing most of the garage data.
 
 ```{r Removing Observations 2237 and 1357}
-df <- df %>% filter(x != 2237 & x != 1357)
+df <- df %>% filter(!is.na(garage.area))
 ```
 
 Variables to remove:
